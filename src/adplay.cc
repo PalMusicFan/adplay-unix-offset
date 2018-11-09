@@ -98,6 +98,7 @@ static struct {
   bool			endless, showinsts, songinfo, songmessage;
   EmuType		emutype;
   Outputs		output;
+  double		offset;			// offset for surroundopl
 } cfg = {
   2048, 44100,
 #ifdef HAVE_ADPLUG_SURROUND
@@ -111,7 +112,8 @@ static struct {
   NULL,
   true, false, false, false,
   Emu_Woody,
-  DEFAULT_DRIVER
+  DEFAULT_DRIVER,
+  128		// Default surroundopl offset is 128, while values like 384 also work
 };
 
 /***** Global functions *****/
@@ -155,6 +157,7 @@ static void usage()
 	 "      --16bit                16-bit sample quality\n"
 	 "  -f, --freq=FREQ            set sample frequency to FREQ\n"
  	 "      --surround             stereo/surround stream\n"
+	 "      --offset               surroundopl offset with a defalut value of 128\n"
 	 "      --stereo               stereo stream\n"
 	 "      --mono                 mono stream\n\n"
 	 "Informative output:\n"
@@ -218,6 +221,7 @@ static int decode_switches(int argc, char **argv)
     {"16bit", no_argument, NULL, '1'},		// 16-bit replay
     {"freq", required_argument, NULL, 'f'},	// set frequency
     {"surround", no_argument, NULL, '4'},		// stereo/harmonic replay
+    {"offset", required_argument, NULL, 'w'},	// surroundopl offset
     {"stereo", no_argument, NULL, '3'},		// stereo replay
     {"mono", no_argument, NULL, '2'},		// mono replay
     {"buffer", required_argument, NULL, 'b'},	// buffer size
@@ -237,13 +241,14 @@ static int decode_switches(int argc, char **argv)
     {NULL, 0, NULL, 0}				// end of options
   };
 
-  while ((c = getopt_long(argc, argv, "8f:b:d:irms:ohVe:O:D:qv",
+  while ((c = getopt_long(argc, argv, "8f:b:d:irms:ohVe:O:D:qvw:",
 			  long_options, (int *)0)) != EOF) {
       switch (c) {
       case '8': cfg.bits = 8; break;
       case '1': cfg.bits = 16; break;
       case 'f': cfg.freq = atoi(optarg); break;
       case '4': cfg.channels = 2; cfg.harmonic = 1; break;
+      case 'w': cfg.offset = atoi(optarg); break;
       case '3': cfg.channels = 2; cfg.harmonic = 0; break;
       case '2': cfg.channels = 1; cfg.harmonic = 0; break;
       case 'b': cfg.buf_size = atoi(optarg); break;
@@ -412,6 +417,8 @@ int main(int argc, char **argv)
       b.opl = new CEmuopl(cfg.freq, b.use16bit, b.stereo);
       opl = new CSurroundopl(&a, &b, cfg.bits == 16);
       // CSurroundopl now owns a.opl and b.opl and will free upon destruction
+      opl->set_offset(cfg.offset);
+      // Set surroundopl offset
 #else
       fprintf(stderr, "Surround requires AdPlug v2.2 or newer.  Use --mono "
       	"or upgrade and recompile AdPlay.\n");
@@ -436,6 +443,8 @@ int main(int argc, char **argv)
       b.opl = new CKemuopl(cfg.freq, b.use16bit, b.stereo);
       opl = new CSurroundopl(&a, &b, cfg.bits == 16);
       // CSurroundopl now owns a and b and will free upon destruction
+      opl->set_offset(cfg.offset);
+      // Set surroundopl offset
 #else
       fprintf(stderr, "Surround requires AdPlug v2.2 or newer.  Use --mono "
       	"or upgrade and recompile AdPlay.\n");
@@ -456,6 +465,8 @@ int main(int argc, char **argv)
       b.opl = new CWemuopl(cfg.freq, b.use16bit, b.stereo);
       opl = new CSurroundopl(&a, &b, cfg.bits == 16);
       // CSurroundopl now owns a and b and will free upon destruction
+      opl->set_offset(cfg.offset);
+      // Set surroundopl offset
 #else
       fprintf(stderr, "Surround requires AdPlug v2.2 or newer.  Use --mono "
       	"or upgrade and recompile AdPlay.\n");
@@ -476,6 +487,9 @@ int main(int argc, char **argv)
       b.opl = new CNemuopl(cfg.freq);
       opl = new CSurroundopl(&a, &b, cfg.bits == 16); // SurroundOPL can convert to 8-bit though
       // CSurroundopl now owns a and b and will free upon destruction
+      opl->set_offset(cfg.offset);
+      printf("Set surroundopl offset...\n");
+      // Set surroundopl offset
   	} else {
   		if(cfg.bits != 16 || cfg.channels != 2) {
   			fprintf(stderr, "Sorry, Nuked OPL3 emulator only works in stereo 16 bits. "
